@@ -1,5 +1,5 @@
 on: [push, pull_request]
-name: Build
+name: Go Build
 jobs:
   build:
     runs-on: ubuntu-latest
