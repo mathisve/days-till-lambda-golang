@@ -19,10 +19,17 @@ var d time.Time
 var f embed.FS
 
 type Till struct {
-	Days    int
-	Hours   int
-	Minutes int
-	Seconds int
+	Days       int
+	DaysString string
+
+	Hours       int
+	HoursString string
+
+	Minutes       int
+	MinutesString string
+
+	Seconds       int
+	SecondsString string
 }
 
 type Output struct {
@@ -35,8 +42,10 @@ func init() {
 	year, _ := strconv.Atoi(os.Getenv("year"))
 	month, _ := strconv.Atoi(os.Getenv("month"))
 	day, _ := strconv.Atoi(os.Getenv("day"))
+	hour, _ := strconv.Atoi(os.Getenv("hour"))
+	minute, _ := strconv.Atoi(os.Getenv("minute"))
 
-	d = date(year, month, day)
+	d = date(year, month, day, hour, minute)
 }
 
 func main() {
@@ -68,17 +77,44 @@ func Handler(ctx context.Context) (output Output, err error) {
 	return output, nil
 }
 
-func date(year, month, day int) time.Time {
-	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+func date(year, month, day, hour, minute int) time.Time {
+	return time.Date(year, time.Month(month), day, hour, minute, 0, 0, time.Local)
 }
 
 func calcUntil(d time.Time) Till {
 	t := int(time.Until(d).Seconds())
 
-	return Till{
+	st := Till{
 		Days:    t / 86400,
 		Hours:   t % 86400 / 3600,
 		Minutes: t % 86400 % 3600 / 60,
 		Seconds: t % 86400 % 3600 % 60,
 	}
+
+	// check for correct spelling
+	if st.Days == 1 {
+		st.DaysString = "day"
+	} else {
+		st.DaysString = "days"
+	}
+
+	if st.Hours == 1 {
+		st.HoursString = "hour"
+	} else {
+		st.HoursString = "hours"
+	}
+
+	if st.Minutes == 1 {
+		st.MinutesString = "minute"
+	} else {
+		st.MinutesString = "minutes"
+	}
+
+	if st.Seconds == 1 {
+		st.SecondsString = "second"
+	} else {
+		st.SecondsString = "seconds"
+	}
+
+	return st
 }
