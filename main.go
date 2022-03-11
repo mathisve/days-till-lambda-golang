@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"fmt"
 	"html/template"
 	"log"
 	"os"
@@ -19,17 +20,17 @@ var d time.Time
 var f embed.FS
 
 type Till struct {
-	Days       int
-	DaysString string
+	HasPassed bool
+	Days      int
+	Hours     int
+	Minutes   int
+	Seconds   int
+}
 
-	Hours       int
-	HoursString string
-
-	Minutes       int
-	MinutesString string
-
-	Seconds       int
-	SecondsString string
+type Template struct {
+	Header string
+	Time   string
+	Footer string
 }
 
 type Output struct {
@@ -49,14 +50,23 @@ func init() {
 }
 
 func main() {
+	// ctx := context.Background()
+	// output, err := Handler(ctx)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+
+	// fmt.Println(output)
 	lambda.Start(Handler)
 }
 
 func Handler(ctx context.Context) (output Output, err error) {
 	buf := new(bytes.Buffer)
 
+	text := makeTemplate(calcUntil(d))
+
 	tmpl, err := template.ParseFS(f, "file.html")
-	tmpl.Execute(buf, calcUntil(d))
+	tmpl.Execute(buf, text)
 
 	if err != nil {
 		log.Println(err)
@@ -84,37 +94,57 @@ func date(year, month, day, hour, minute int) time.Time {
 func calcUntil(d time.Time) Till {
 	t := int(time.Until(d).Seconds())
 
-	st := Till{
-		Days:    t / 86400,
-		Hours:   t % 86400 / 3600,
-		Minutes: t % 86400 % 3600 / 60,
-		Seconds: t % 86400 % 3600 % 60,
+	return Till{
+		HasPassed: t < 0,
+		Days:      pos(t / 86400),
+		Hours:     pos(t % 86400 / 3600),
+		Minutes:   pos(t % 86400 % 3600 / 60),
+		Seconds:   pos(t % 86400 % 3600 % 60),
 	}
+}
 
-	// check for correct spelling
-	if st.Days == 1 {
-		st.DaysString = "day"
+func makeTemplate(t Till) Template {
+	var tmpl Template
+
+	if t.HasPassed {
+		tmpl.Header = "Time since bliss:"
+		tmpl.Footer = "Time since my plane landed!"
 	} else {
-		st.DaysString = "days"
+		tmpl.Header = "Time till bliss:"
+		tmpl.Footer = "Time until my plane lands!"
 	}
 
-	if st.Hours == 1 {
-		st.HoursString = "hour"
+	if t.Days == 1 {
+		tmpl.Time += fmt.Sprintf("%d day ", t.Days)
 	} else {
-		st.HoursString = "hours"
+		tmpl.Time += fmt.Sprintf("%d days ", t.Days)
 	}
 
-	if st.Minutes == 1 {
-		st.MinutesString = "minute"
+	if t.Hours == 1 {
+		tmpl.Time += fmt.Sprintf("%d hour ", t.Hours)
 	} else {
-		st.MinutesString = "minutes"
+		tmpl.Time += fmt.Sprintf("%d hours ", t.Hours)
 	}
 
-	if st.Seconds == 1 {
-		st.SecondsString = "second"
+	if t.Minutes == 1 {
+		tmpl.Time += fmt.Sprintf("%d minute ", t.Minutes)
 	} else {
-		st.SecondsString = "seconds"
+		tmpl.Time += fmt.Sprintf("%d minutes ", t.Minutes)
 	}
 
-	return st
+	if t.Seconds == 1 {
+		tmpl.Time += fmt.Sprintf("%d second ", t.Seconds)
+	} else {
+		tmpl.Time += fmt.Sprintf("%d seconds ", t.Seconds)
+	}
+
+	return tmpl
+}
+
+func pos(i int) int {
+	if i < 0 {
+		return i * -1
+	} else {
+		return i
+	}
 }
